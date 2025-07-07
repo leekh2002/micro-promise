@@ -1,5 +1,6 @@
 package com.gyuhyuk.price_alert.data.dto;
 
+import com.gyuhyuk.price_alert.common.annotation.PasswordMatch;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -9,6 +10,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
+@PasswordMatch
 public class SignUpRequestDTO {
 
     @NotBlank(message = "이메일은 필수입니다.")

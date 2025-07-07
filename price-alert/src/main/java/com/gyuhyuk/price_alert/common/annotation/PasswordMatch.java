@@ -1,5 +1,6 @@
 package com.gyuhyuk.price_alert.common.annotation;
 
+import com.gyuhyuk.price_alert.common.valid.PasswordMatchValidator;
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;
 
