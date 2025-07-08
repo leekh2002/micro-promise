@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Table(name = "user", uniqueConstraints = @UniqueConstraint(columnNames = "email"))
 public class UserEntity {
     @Id
-    private Long id;
+    private String id;
 
     @Column(nullable = false, length = 255)
     private String email;
