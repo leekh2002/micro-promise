@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: micro-promise
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/micro_promise?serverTimezone=Asia/Seoul
+    username: root
+    password: rbgur123
+
+  sql:
+    init:
+      mode: always
+
+
+
+  jpa:
+    properties:
+      hibernate:
+        show_sql: true
+        format_sql: true
+    hibernate:
+      ddl-auto: create
+    database-platform: org.hibernate.dialect.MySQLDialect
+    defer-datasource-initialization: true
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${구글 클라이언트 ID}
+            client-secret: ${구글 클라이언트 Secret}
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope:
+              - profile
+              - email
+jwt:
+  header: Authorization
+  secret: c2lsdmVybmluZS10ZWNoLXNwcmluZy1ib290LWp3dC10dXRvcmlhbC1zZWNyZXQtc2lsdmVybmluZS10ZWNoLXNwcmluZy1ib290LWp3dC10dXRvcmlhbC1zZWNyZXQK
+  token-validity-in-seconds: 86400
