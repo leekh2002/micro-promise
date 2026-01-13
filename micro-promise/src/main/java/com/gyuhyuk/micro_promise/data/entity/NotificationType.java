@@ -1,0 +1,15 @@
+package com.gyuhyuk.micro_promise.data.entity;
+
+public enum NotificationType {
+    TASK_ASSIGNED,
+    TASK_UPDATED,
+    TASK_DELETED,
+    TASK_DONE_REQUESTED,
+    TASK_DONE_ACCEPTED,
+    TASK_DONE_REJECTED,
+    TASK_OWNER_CHANGED,
+    MEMBER_ADDED_TO_ANCESTORS,
+    MEMBER_REMOVED_OR_LEFT,
+    GIT_COMMIT_LINKED,
+    GIT_BRANCH_LINKED
+}

@@ -3,41 +3,38 @@ package com.gyuhyuk.micro_promise.data.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
-import java.util.Set;
-
 @Entity
+@Table(
+        name = "users",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_users_email", columnNames = {"email"})
+        }
+)
 @Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
-@Table(name = "`user`", uniqueConstraints = @UniqueConstraint(columnNames = "email"))
-public class UserEntity {
+public class UserEntity extends BaseTimeEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id")
-    private Integer id;
+    private Long id;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false, length = 120)
     private String email;
 
-    @Column(nullable = false, length = 255)
-    private String password;
+    // LOCAL일 때만 사용 가능(소셜로그인이면 null 가능)
+    @Column(length = 255)
+    private String passwordHash;
 
-    @Column(length = 100)
-    private String username;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private AuthProvider provider;
 
-    @Column(name = "created_at", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-    private LocalDateTime createdAt;
+    // 소셜 provider user id (LOCAL이면 null 가능)
+    @Column(length = 200)
+    private String providerUserId;
 
-    @Column(name = "updated_at", columnDefinition = "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
-    private LocalDateTime updatedAt;
-
-    @ManyToMany
-    @JoinTable(
-            name = "user_authority",
-            joinColumns = {@JoinColumn(name = "user_id", referencedColumnName = "user_id")},
-            inverseJoinColumns = {@JoinColumn(name = "authority_name", referencedColumnName = "authority_name")})
-    private Set<AuthorityEntity> authorities;
+    @Column(nullable = false, length = 50)
+    private String nickname;
 }
