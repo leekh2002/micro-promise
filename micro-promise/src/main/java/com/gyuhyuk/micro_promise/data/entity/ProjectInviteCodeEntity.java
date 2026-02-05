@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
         }
 )
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 public class ProjectInviteCodeEntity extends BaseTimeEntity {
