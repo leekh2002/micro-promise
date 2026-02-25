@@ -9,17 +9,15 @@ import java.time.LocalDateTime;
 @Table(
         name = "project_invite_codes",
         indexes = {
-                @Index(name = "idx_invite_project", columnList = "project_id"),
-                @Index(name = "idx_invite_expires", columnList = "expires_at")
+                @Index(name = "idx_invite_project", columnList = "project_id")
+
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_invite_code", columnNames = {"code"})
         }
 )
 @Getter
-@NoArgsConstructor
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ProjectInviteCodeEntity extends BaseTimeEntity {
 
     @Id
@@ -34,9 +32,13 @@ public class ProjectInviteCodeEntity extends BaseTimeEntity {
     @Column(nullable = false, length = 64)
     private String code;
 
-    @Column(name = "expires_at", nullable = false)
-    private LocalDateTime expiresAt;
-
     @Column(nullable = false)
     private boolean revoked;
+
+    @Builder
+    public ProjectInviteCodeEntity(ProjectEntity project, String code, boolean revoked) {
+        this.project = project;
+        this.code = code;
+        this.revoked = revoked;
+    }
 }

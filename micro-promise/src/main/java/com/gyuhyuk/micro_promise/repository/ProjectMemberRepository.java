@@ -1,0 +1,19 @@
+package com.gyuhyuk.micro_promise.repository;
+
+import com.gyuhyuk.micro_promise.data.entity.ProjectEntity;
+import com.gyuhyuk.micro_promise.data.entity.ProjectMemberEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+
+public interface ProjectMemberRepository extends JpaRepository<ProjectMemberEntity, Long> {
+    @Query("""
+        select distinct pm.project
+        from ProjectMemberEntity pm
+        where pm.user.username = :username
+          and pm.active = true
+    """)
+    List<ProjectEntity> findProjectsByUsername(@Param("username") String username);
+}

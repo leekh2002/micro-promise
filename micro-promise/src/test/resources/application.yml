@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: micro-promise
+  config:
+    import: optional:file:.env[.properties]
+  datasource: ${DB_URL}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url:
+    username: ${DB_ID}
+    password: ${DB_PASSWORD}
+
+  sql:
+    init:
+      mode: always
+
+  jpa:
+    properties:
+      hibernate:
+        show_sql: true
+    hibernate:
+      ddl-auto: create
+    database-platform: org.hibernate.dialect.MySQLDialect
+    defer-datasource-initialization: true

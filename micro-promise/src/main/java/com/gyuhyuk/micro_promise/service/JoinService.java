@@ -33,12 +33,19 @@ public class JoinService {
             return;
         }
 
-        UserEntity data = new UserEntity();
+//        UserEntity data = new UserEntity();
+//
+//        data.setUsername(username);
+//        data.setPassword(bCryptPasswordEncoder.encode(password));
+//        data.setName(name);
+//        data.setRole(UserRole.ROLE_USER);
 
-        data.setUsername(username);
-        data.setPassword(bCryptPasswordEncoder.encode(password));
-        data.setName(name);
-        data.setRole(UserRole.ROLE_USER);
+        UserEntity data = UserEntity.builder()
+                .username(username)
+                .password(bCryptPasswordEncoder.encode(password))
+                .name(name)
+                .role(UserRole.ROLE_USER)
+                .build();
 
         userRepository.save(data);
     }

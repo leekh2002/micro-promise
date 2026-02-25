@@ -15,8 +15,6 @@ import lombok.*;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
 public class ProjectMemberEntity extends BaseTimeEntity {
 
     @Id
@@ -40,4 +38,12 @@ public class ProjectMemberEntity extends BaseTimeEntity {
     // 초대 수락 시점 등을 추적하고 싶으면 사용
     @Column(nullable = false)
     private boolean active;
+
+    @Builder
+    public ProjectMemberEntity(ProjectEntity project, UserEntity user, ProjectRole role, boolean active) {
+        this.project = project;
+        this.user = user;
+        this.role = role;
+        this.active = active;
+    }
 }

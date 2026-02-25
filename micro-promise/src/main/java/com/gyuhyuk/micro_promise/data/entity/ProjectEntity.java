@@ -3,12 +3,12 @@ package com.gyuhyuk.micro_promise.data.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "projects")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
 public class ProjectEntity extends BaseTimeEntity {
 
     @Id
@@ -20,4 +20,18 @@ public class ProjectEntity extends BaseTimeEntity {
 
     @Column(length = 2000)
     private String description;
+
+    private LocalDateTime createdDate;
+
+    @Builder
+    public ProjectEntity(String name, String description, LocalDateTime createdDate) {
+        this.name = name;
+        this.description = description;
+        this.createdDate = createdDate;
+    }
+
+    public void updateProjectInfo(String name, String description) {
+        this.name = name;
+        this.description = description;
+    }
 }

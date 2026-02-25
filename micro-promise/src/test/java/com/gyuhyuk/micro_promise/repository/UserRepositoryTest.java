@@ -26,11 +26,9 @@ public class UserRepositoryTest {
         // ✅ given
         String userId = UUID.randomUUID().toString();
         UserEntity user = UserEntity.builder()
-                .id(userId)
                 .email("kyuhyuk@example.com")
                 .password("securePassword123")
                 .username("이규혁")
-                .createdAt(LocalDateTime.now())
                 .build();
 
         // ✅ when

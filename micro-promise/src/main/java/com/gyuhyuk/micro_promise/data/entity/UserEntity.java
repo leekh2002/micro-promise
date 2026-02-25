@@ -11,10 +11,7 @@ import lombok.*;
         }
 )
 @Getter
-@Setter
-@NoArgsConstructor(access = AccessLevel.PUBLIC)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class UserEntity extends BaseTimeEntity {
 
     @Id
@@ -44,4 +41,20 @@ public class UserEntity extends BaseTimeEntity {
 
     @Enumerated(EnumType.STRING)
     private UserRole role;
+
+    @Builder
+    public UserEntity(String username, String email, String password, AuthProvider provider, String providerUserId, String name, UserRole role) {
+        this.username = username;
+        this.email = email;
+        this.password = password;
+        this.provider = provider;
+        this.providerUserId = providerUserId;
+        this.name = name;
+        this.role = role;
+    }
+
+    public void updateUserInfo(String email, String name) {
+        this.email = email;
+        this.name = name;
+    }
 }

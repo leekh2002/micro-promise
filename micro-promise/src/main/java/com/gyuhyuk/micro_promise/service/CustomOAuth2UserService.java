@@ -48,12 +48,19 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         UserEntity existData = userRepository.findByUsername(username);
 
         if (existData == null) {
-            UserEntity userEntity = new UserEntity();
-            userEntity.setUsername(username);
-            userEntity.setEmail(oAuth2Response.getEmail());
-            userEntity.setName(oAuth2Response.getName());
-            userEntity.setProvider(authProvider);
-            userEntity.setRole(UserRole.ROLE_USER);
+//            UserEntity userEntity = new UserEntity();
+//            userEntity.setUsername(username);
+//            userEntity.setEmail(oAuth2Response.getEmail());
+//            userEntity.setName(oAuth2Response.getName());
+//            userEntity.setProvider(authProvider);
+//            userEntity.setRole(UserRole.ROLE_USER);
+            UserEntity userEntity = UserEntity.builder()
+                    .username(username)
+                    .email(oAuth2Response.getEmail())
+                    .name(oAuth2Response.getName())
+                    .provider(authProvider)
+                    .role(UserRole.ROLE_USER)
+                    .build();
 
             userRepository.save(userEntity);
 
@@ -65,8 +72,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             return new CustomOAuth2User(userDTO);
         }
         else {
-            existData.setEmail(oAuth2Response.getEmail());
-            existData.setName(oAuth2Response.getName());
+//            existData.setEmail(oAuth2Response.getEmail());
+//            existData.setName(oAuth2Response.getName());
+
+            existData.updateUserInfo(oAuth2Response.getEmail(), oAuth2Response.getName());
 
             userRepository.save(existData);
 
