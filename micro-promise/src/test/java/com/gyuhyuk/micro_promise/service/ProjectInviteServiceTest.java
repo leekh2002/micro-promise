@@ -28,19 +28,19 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 @ExtendWith(MockitoExtension.class)
 class ProjectInviteServiceTest {
     @InjectMocks
-    ProjectInviteService projectInviteService;
+    private ProjectInviteService projectInviteService;
 
     @Mock
-    ProjectInviteCodeRepository projectInviteCodeRepository;
+    private ProjectInviteCodeRepository projectInviteCodeRepository;
 
     @Mock
-    ProjectRepository projectRepository;
+    private ProjectRepository projectRepository;
 
     @Mock
-    ProjectMemberRepository projectMemberRepository;
+    private ProjectMemberRepository projectMemberRepository;
 
     @Mock
-    UserRepository userRepository;
+    private UserRepository userRepository;
 
     @Test
     void generateInviteCode_테스트() {

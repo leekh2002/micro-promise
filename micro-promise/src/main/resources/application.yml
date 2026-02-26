@@ -50,3 +50,6 @@ spring:
             user-name-attribute: response
   jwt:
     secret: ${JWT_SECRET}
+
+  github:
+    token: ${GITHUB_TOKEN}

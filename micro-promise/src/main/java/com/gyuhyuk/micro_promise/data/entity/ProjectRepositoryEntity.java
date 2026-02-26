@@ -12,12 +12,9 @@ import lombok.*;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
 public class ProjectRepositoryEntity extends BaseTimeEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
@@ -25,16 +22,17 @@ public class ProjectRepositoryEntity extends BaseTimeEntity {
             foreignKey = @ForeignKey(name = "fk_repo_project"))
     private ProjectEntity project;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private GitProvider provider;
-
-    @Column(nullable = false, length = 200)
-    private String repoOwner; // org/user
-
     @Column(nullable = false, length = 200)
     private String repoName;
 
     @Column(nullable = false, length = 1000)
     private String repoUrl;
+
+    @Builder
+    public ProjectRepositoryEntity(Long id, ProjectEntity project, String repoName, String repoUrl) {
+        this.id = id;
+        this.project = project;
+        this.repoName = repoName;
+        this.repoUrl = repoUrl;
+    }
 }
