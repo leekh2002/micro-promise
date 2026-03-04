@@ -18,8 +18,6 @@ import lombok.*;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
 public class TaskAssigneeEntity extends BaseTimeEntity {
 
     @Id
@@ -35,4 +33,15 @@ public class TaskAssigneeEntity extends BaseTimeEntity {
     @JoinColumn(name = "project_member_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_task_assignees_project_member"))
     private ProjectMemberEntity projectMember;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private TaskRole role;
+
+    @Builder
+    public TaskAssigneeEntity(TaskEntity task, ProjectMemberEntity projectMember, TaskRole role) {
+        this.task = task;
+        this.role = role;
+        this.projectMember = projectMember;
+    }
 }

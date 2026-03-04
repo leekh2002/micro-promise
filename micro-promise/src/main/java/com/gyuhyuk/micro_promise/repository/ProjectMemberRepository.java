@@ -16,4 +16,15 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMemberEnti
           and pm.active = true
     """)
     List<ProjectEntity> findProjectsByUsername(@Param("username") String username);
+
+    @Query("""
+        select pm
+        from ProjectMemberEntity pm
+        where pm.project.id = :projectId
+          and pm.user.username in :usernames
+    """)
+    List<ProjectMemberEntity> findProjectMembersByProjectIdAndUsernameIn(
+            @Param("projectId") Long projectId,
+            @Param("usernames") List<String> usernames
+    );
 }

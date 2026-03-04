@@ -22,10 +22,10 @@ public class ProjectInviteService {
     // Crockford Base32 (혼동 문자 제거)
     private static final char[] ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ".toCharArray();
 
-    private ProjectInviteCodeRepository projectInviteCodeRepository;
-    private ProjectRepository projectRepository;
-    private ProjectMemberRepository projectMemberRepository;
-    private UserRepository userRepository;
+    private final ProjectInviteCodeRepository projectInviteCodeRepository;
+    private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
+    private final UserRepository userRepository;
 
     public ProjectInviteService(ProjectInviteCodeRepository projectInviteCodeRepository, ProjectRepository projectRepository, ProjectMemberRepository projectMemberRepository, UserRepository userRepository) {
         this.projectInviteCodeRepository = projectInviteCodeRepository;
