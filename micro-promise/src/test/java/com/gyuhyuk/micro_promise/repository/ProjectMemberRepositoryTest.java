@@ -73,4 +73,73 @@ class ProjectMemberRepositoryTest {
         assertNotNull(result);
         assertArrayEquals(new String[]{username1, username2}, result.stream().map(pm -> pm.getUser().getUsername()).toArray());
     }
+
+    @Test
+    void deleteByProjectIdAndUsername_테스트() {
+        // given
+        String username = "user1";
+
+        ProjectEntity projectEntity = ProjectEntity.builder()
+                .name("Test Project")
+                .build();
+
+        projectRepository.save(projectEntity);
+
+        UserEntity user = UserEntity.builder()
+                .username(username)
+                .name(username)
+                .build();
+
+        userRepository.save(user);
+
+        ProjectMemberEntity projectMemberEntity = ProjectMemberEntity.builder()
+                .project(projectEntity)
+                .active(true)
+                .user(user)
+                .role(ProjectRole.MEMBER)
+                .build();
+
+        projectMemberRepository.save(projectMemberEntity);
+        Long projectId = projectEntity.getId();
+
+        // when
+        projectMemberRepository.deleteByProjectIdAndUserUsername(projectId, username);
+
+        // then
+        var result = projectMemberRepository.findProjectMembersByProjectIdAndUsernameIn(projectId, List.of(username));
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void existsByProjectIdAndUserUsername_테스트() {
+        // given
+        String username = "user1";
+
+        ProjectEntity projectEntity = ProjectEntity.builder()
+                .name("Test Project")
+                .build();
+
+        projectRepository.save(projectEntity);
+
+        UserEntity user = UserEntity.builder()
+                .username(username)
+                .name(username)
+                .build();
+
+        userRepository.save(user);
+
+        ProjectMemberEntity projectMemberEntity = ProjectMemberEntity.builder()
+                .project(projectEntity)
+                .active(true)
+                .user(user)
+                .role(ProjectRole.MEMBER)
+                .build();
+
+        projectMemberRepository.save(projectMemberEntity);
+        Long projectId = projectEntity.getId();
+
+        // when & then
+        assertTrue(projectMemberRepository.existsByProjectIdAndUserUsername(projectId, username));
+        assertFalse(projectMemberRepository.existsByProjectIdAndUserUsername(projectId, "nonexistent_user"));
+    }
 }

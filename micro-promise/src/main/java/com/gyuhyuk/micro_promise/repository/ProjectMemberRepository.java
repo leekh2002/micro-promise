@@ -27,4 +27,7 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMemberEnti
             @Param("projectId") Long projectId,
             @Param("usernames") List<String> usernames
     );
+
+    void deleteByProjectIdAndUserUsername(Long projectId, String username);
+    boolean existsByProjectIdAndUserUsername(Long projectId, String username);
 }
