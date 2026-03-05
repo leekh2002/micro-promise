@@ -2,6 +2,7 @@ package com.gyuhyuk.micro_promise.repository;
 
 import com.gyuhyuk.micro_promise.data.entity.ProjectEntity;
 import com.gyuhyuk.micro_promise.data.entity.ProjectMemberEntity;
+import com.gyuhyuk.micro_promise.data.entity.ProjectRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -30,4 +31,6 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMemberEnti
 
     void deleteByProjectIdAndUserUsername(Long projectId, String username);
     boolean existsByProjectIdAndUserUsername(Long projectId, String username);
+
+    ProjectRole findRoleByProjectIdAndUserUsername(Long projectId, String username);
 }

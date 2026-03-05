@@ -3,6 +3,7 @@ package com.gyuhyuk.micro_promise.service;
 import com.gyuhyuk.micro_promise.data.dto.ProjectDTO;
 import com.gyuhyuk.micro_promise.data.entity.ProjectEntity;
 import com.gyuhyuk.micro_promise.data.entity.ProjectMemberEntity;
+import com.gyuhyuk.micro_promise.data.entity.ProjectRole;
 import com.gyuhyuk.micro_promise.repository.ProjectMemberRepository;
 import com.gyuhyuk.micro_promise.repository.ProjectRepository;
 import com.gyuhyuk.micro_promise.repository.UserRepository;
@@ -59,13 +60,21 @@ public class ProjectService {
     }
 
     @Transactional
-    public ProjectDTO updateProject(ProjectDTO projectDTO) {
+    public ProjectDTO updateProject(ProjectDTO projectDTO, String requestedUsername) {
         if (projectDTO.getId() == null) {
             throw new IllegalArgumentException("Project ID cannot be null");
         }
 
         if (!projectRepository.existsById(projectDTO.getId())) {
             throw new IllegalArgumentException("Project does not exist");
+        }
+
+        if (!projectMemberRepository.existsByProjectIdAndUserUsername(projectDTO.getId(), requestedUsername)) {
+            throw new IllegalArgumentException("User is not a member of the project");
+        }
+
+        if (projectMemberRepository.findRoleByProjectIdAndUserUsername(projectDTO.getId(), requestedUsername) != ProjectRole.OWNER) {
+            throw new IllegalArgumentException("Only project owners can update project information");
         }
 
         ProjectEntity projectEntity = projectRepository.findById(projectDTO.getId()).orElseThrow();
@@ -84,9 +93,17 @@ public class ProjectService {
     }
 
     @Transactional
-    public void deleteProject(Long projectId) {
+    public void deleteProject(Long projectId, String requestedUsername) {
         if (!projectRepository.existsById(projectId)) {
             throw new IllegalArgumentException("Project does not exist");
+        }
+
+        if (!projectMemberRepository.existsByProjectIdAndUserUsername(projectId, requestedUsername)) {
+            throw new IllegalArgumentException("User is not a member of the project");
+        }
+
+        if (projectMemberRepository.findRoleByProjectIdAndUserUsername(projectId, requestedUsername) != ProjectRole.OWNER) {
+            throw new IllegalArgumentException("Only project owners can delete the project");
         }
 
         projectRepository.deleteById(projectId);

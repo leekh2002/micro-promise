@@ -3,6 +3,7 @@ package com.gyuhyuk.micro_promise.service;
 import com.gyuhyuk.micro_promise.data.dto.ProjectDTO;
 import com.gyuhyuk.micro_promise.data.entity.ProjectEntity;
 import com.gyuhyuk.micro_promise.data.entity.ProjectMemberEntity;
+import com.gyuhyuk.micro_promise.data.entity.ProjectRole;
 import com.gyuhyuk.micro_promise.repository.ProjectMemberRepository;
 import com.gyuhyuk.micro_promise.repository.ProjectRepository;
 import com.gyuhyuk.micro_promise.repository.UserRepository;
@@ -176,6 +177,8 @@ class ProjectServiceTest {
     void updateProject_테스트() {
         // given
         ProjectEntity existing = new ProjectEntity("old name", "old desc", null);
+        String requestedUsername = "requester";
+        String nonOwnerUsername = "non_owner";
 
         // id는 리플렉션으로 세팅 (setter 없을 때 정석)
         ReflectionTestUtils.setField(existing, "id", 1L);
@@ -189,13 +192,30 @@ class ProjectServiceTest {
         given(projectRepository.existsById(1L))
                 .willReturn(true);
 
+        given(projectMemberRepository.existsByProjectIdAndUserUsername(1L, requestedUsername))
+                .willReturn(true);
+
+        given(projectMemberRepository.existsByProjectIdAndUserUsername(1L, nonOwnerUsername))
+                .willReturn(true);
+
+        given(projectMemberRepository.findRoleByProjectIdAndUserUsername(1L, requestedUsername))
+                .willReturn(ProjectRole.OWNER);
+
+        given(projectMemberRepository.findRoleByProjectIdAndUserUsername(1L, nonOwnerUsername))
+                .willReturn(ProjectRole.MEMBER);
+
         ProjectDTO dto = new ProjectDTO();
         dto.setId(1L);
         dto.setName("new name");
         dto.setDescription("new desc");
 
         // when
-        ProjectDTO result = projectService.updateProject(dto);
+        ProjectDTO result = projectService.updateProject(dto, requestedUsername);
+
+        // when & then: non-owner가 업데이트 시도하면 예외
+        assertThrows(IllegalArgumentException.class, () -> {
+            projectService.updateProject(dto, nonOwnerUsername);
+        });
 
         // then
         ArgumentCaptor<ProjectEntity> captor =
@@ -217,6 +237,7 @@ class ProjectServiceTest {
     void updateProject_no_exist_project() {
         // given
         ProjectEntity existing = new ProjectEntity("old name", "old desc", null);
+        String requestedUsername = "requester";
 
         // id는 리플렉션으로 세팅 (setter 없을 때 정석)
         ReflectionTestUtils.setField(existing, "id", 2L);
@@ -229,19 +250,27 @@ class ProjectServiceTest {
         // when & then
         assertThrows(
                 IllegalArgumentException.class,
-                () -> projectService.updateProject(dto)
+                () -> projectService.updateProject(dto, requestedUsername)
         );
 
     }
 
     @Test
-    void deleteProject_테스트() {
+    void deleteProject_OWNER_테스트() {
         // given
         Long projectId = 1L;
+        String requestedUsername = "requester";
+
         given(projectRepository.existsById(projectId)).willReturn(true);
 
+        given(projectMemberRepository.existsByProjectIdAndUserUsername(projectId, requestedUsername))
+                .willReturn(true);
+
+        given(projectMemberRepository.findRoleByProjectIdAndUserUsername(1L, requestedUsername))
+                .willReturn(ProjectRole.OWNER);
+
         // when
-        projectService.deleteProject(projectId);
+        projectService.deleteProject(projectId, requestedUsername);
 
         // then
         verify(projectRepository).existsById(projectId);
@@ -249,13 +278,37 @@ class ProjectServiceTest {
     }
 
     @Test
+    void deleteProject_NON_OWNER_테스트() {
+        // given
+        Long projectId = 1L;
+        String requestedUsername = "requester";
+
+        given(projectRepository.existsById(projectId)).willReturn(true);
+
+        given(projectMemberRepository.existsByProjectIdAndUserUsername(projectId, requestedUsername))
+                .willReturn(true);
+
+        given(projectMemberRepository.findRoleByProjectIdAndUserUsername(1L, requestedUsername))
+                .willReturn(ProjectRole.MEMBER);
+
+        // when & then
+        assertThrows(IllegalArgumentException.class, () -> {
+            projectService.deleteProject(projectId, requestedUsername);
+        });
+
+        verify(projectRepository).existsById(projectId);
+        verify(projectRepository, never()).deleteById(anyLong()); //projectRepository.deleteById()는 어떤 id로도 호출되면 안 된다
+    }
+
+    @Test
     void deleteProject_존재하지_않는_프로젝트_테스트() {
         // given
         Long projectId = 99L;
+        String requestedUsername = "requester";
         given(projectRepository.existsById(projectId)).willReturn(false);
         // when & then
         assertThrows(IllegalArgumentException.class, () -> {
-            projectService.deleteProject(projectId);
+            projectService.deleteProject(projectId, requestedUsername);
         });
     }
 
