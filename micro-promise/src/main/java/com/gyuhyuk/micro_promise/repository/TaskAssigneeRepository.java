@@ -2,6 +2,7 @@ package com.gyuhyuk.micro_promise.repository;
 
 import com.gyuhyuk.micro_promise.data.entity.TaskAssigneeEntity;
 import com.gyuhyuk.micro_promise.data.entity.TaskEntity;
+import com.gyuhyuk.micro_promise.data.entity.TaskRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,4 +17,6 @@ public interface TaskAssigneeRepository extends JpaRepository<TaskAssigneeEntity
         where ta.projectMember.user.username = :username
     """)
     List<TaskEntity> findTaskByAssigneeUsername(@Param("username")String username);
+
+    TaskRole findRoleByTaskIdAndAssigneeUsername(Long taskId, String username);
 }

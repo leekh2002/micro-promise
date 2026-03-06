@@ -190,9 +190,10 @@ class TaskServiceTest {
     }
 
     @Test
-    void updateTask_테스트() {
+    void updateTask_TaskOwner_테스트() {
         //given
         Long taskId = 1L;
+        String requester = "테스트 owner";
         TaskDTO taskDTO = new TaskDTO();
         taskDTO.setId(taskId);
         taskDTO.setTitle("업데이트된 태스크");
@@ -211,24 +212,74 @@ class TaskServiceTest {
                 .status(TaskStatus.DOING)
                 .build()));
 
+        given(taskAssigneeRepository.findRoleByTaskIdAndAssigneeUsername(taskId, requester))
+                .willReturn(TaskRole.OWNER);
+
         //when
-        TaskDTO updatedTaskDTO = taskService.updateTask(taskDTO);
+        TaskDTO updatedTaskDTO = taskService.updateTask(taskDTO, requester);
 
         //then
         assertEquals("업데이트된 태스크", updatedTaskDTO.getTitle());
     }
 
     @Test
-    void deleteTask_테스트() {
+    void updateTask_NotOwner_테스트() {
         //given
         Long taskId = 1L;
+        String requester = "테스트 유저";
+        TaskDTO taskDTO = new TaskDTO();
+        taskDTO.setId(taskId);
+        taskDTO.setTitle("업데이트된 태스크");
+        taskDTO.setDescription("업데이트된 태스크 설명");
+        taskDTO.setStatus("DONE");
+
+        given(taskRepository.findById(taskId)).willReturn(Optional.of(TaskEntity.builder()
+                .title("기존 태스크")
+                .description("기존 태스크 설명")
+                .status(TaskStatus.DOING)
+                .build()));
+
+        given(taskAssigneeRepository.findRoleByTaskIdAndAssigneeUsername(taskId, requester))
+                .willReturn(TaskRole.MEMBER);
+
+        //when & then
+        assertThrows(IllegalArgumentException.class, () -> {
+            taskService.updateTask(taskDTO, requester);
+        });
+    }
+
+    @Test
+    void deleteTask_Owner_테스트() {
+        //given
+        Long taskId = 1L;
+        String requester = "테스트 owner";
         given(taskRepository.existsById(taskId)).willReturn(true);
 
+        given(taskAssigneeRepository.findRoleByTaskIdAndAssigneeUsername(taskId, requester))
+                .willReturn(TaskRole.OWNER);
+
         //when
-        taskService.deleteTask(taskId);
+        taskService.deleteTask(taskId, requester);
 
         //then
         verify(taskRepository).deleteById(taskId);
+    }
+
+    @Test
+    void deleteTask_NotOwner_테스트() {
+        //given
+        Long taskId = 1L;
+        String requester = "테스트 유저";
+
+        given(taskRepository.existsById(taskId)).willReturn(true);
+        given(taskAssigneeRepository.findRoleByTaskIdAndAssigneeUsername(taskId, requester))
+                .willReturn(TaskRole.MEMBER);
+
+        //when & then
+        assertThrows(IllegalArgumentException.class, () -> {
+            taskService.deleteTask(taskId, requester);
+        });
+
     }
 
 }
