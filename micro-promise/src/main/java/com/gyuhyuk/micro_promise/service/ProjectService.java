@@ -4,6 +4,7 @@ import com.gyuhyuk.micro_promise.data.dto.ProjectDTO;
 import com.gyuhyuk.micro_promise.data.entity.ProjectEntity;
 import com.gyuhyuk.micro_promise.data.entity.ProjectMemberEntity;
 import com.gyuhyuk.micro_promise.data.entity.ProjectRole;
+import com.gyuhyuk.micro_promise.data.entity.UserEntity;
 import com.gyuhyuk.micro_promise.repository.ProjectMemberRepository;
 import com.gyuhyuk.micro_promise.repository.ProjectRepository;
 import com.gyuhyuk.micro_promise.repository.UserRepository;
@@ -27,6 +28,11 @@ public class ProjectService {
 
     @Transactional
     public void createProject(ProjectDTO projectDTO) {
+        createProject(projectDTO, null);
+    }
+
+    @Transactional
+    public ProjectDTO createProject(ProjectDTO projectDTO, String ownerUsername) {
         if (projectDTO.getName().isEmpty()) {
             throw new IllegalArgumentException("Project name cannot be null");
         }
@@ -36,7 +42,31 @@ public class ProjectService {
                 .description(projectDTO.getDescription())
                 .build();
 
-        projectRepository.save(projectEntity);
+        ProjectEntity savedProject = projectRepository.save(projectEntity);
+
+        if (ownerUsername != null) {
+            UserEntity owner = userRepository.findByUsername(ownerUsername);
+            if (owner == null) {
+                throw new IllegalArgumentException("User does not exist");
+            }
+
+            ProjectMemberEntity projectOwner = ProjectMemberEntity.builder()
+                    .project(savedProject)
+                    .user(owner)
+                    .role(ProjectRole.OWNER)
+                    .active(true)
+                    .build();
+
+            projectMemberRepository.save(projectOwner);
+        }
+
+        ProjectDTO createdProject = new ProjectDTO();
+        createdProject.setId(savedProject.getId());
+        createdProject.setName(savedProject.getName());
+        createdProject.setDescription(savedProject.getDescription());
+        createdProject.setCreatedAt(savedProject.getCreatedAt());
+
+        return createdProject;
     }
 
     public List<ProjectDTO> getProjectsByUsername(String username) {

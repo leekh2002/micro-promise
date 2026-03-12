@@ -29,6 +29,9 @@ public class ReissueService {
         //get refresh token
         String refresh = null;
         Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return new ResponseEntity<>("refresh token null", HttpStatus.BAD_REQUEST);
+        }
         for (Cookie cookie : cookies) {
 
             if (cookie.getName().equals("refresh")) {
@@ -107,7 +110,7 @@ public class ReissueService {
         Cookie cookie = new Cookie(key, value);
         cookie.setMaxAge(24*60*60);
         //cookie.setSecure(true);
-        //cookie.setPath("/");
+        cookie.setPath("/");
         cookie.setHttpOnly(true);
 
         return cookie;

@@ -121,7 +121,7 @@ public class TaskService {
                 () -> new IllegalArgumentException("태스크를 찾을 수 없습니다.")
         );
 
-        if (taskAssigneeRepository.findRoleByTaskIdAndAssigneeUsername(taskDTO.getId(), requester) != TaskRole.OWNER) {
+        if (taskAssigneeRepository.findRoleByTaskIdAndProjectMemberUserUsername(taskDTO.getId(), requester) != TaskRole.OWNER) {
             throw new IllegalArgumentException("태스크 수정 권한이 없습니다.");
         }
 
@@ -142,7 +142,7 @@ public class TaskService {
             throw new IllegalArgumentException("태스크를 찾을 수 없습니다.");
         }
 
-        if (taskAssigneeRepository.findRoleByTaskIdAndAssigneeUsername(taskId, requester) != TaskRole.OWNER) {
+        if (taskAssigneeRepository.findRoleByTaskIdAndProjectMemberUserUsername(taskId, requester) != TaskRole.OWNER) {
             throw new IllegalArgumentException("태스크 삭제 권한이 없습니다.");
         }
         taskRepository.deleteById(taskId);

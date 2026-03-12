@@ -36,6 +36,9 @@ public class UserEntity extends BaseTimeEntity {
     @Column(length = 200)
     private String providerUserId;
 
+    @Column(length = 1000)
+    private String githubAccessToken;
+
     @Column(nullable = false, length = 50)
     private String name;
 
@@ -43,12 +46,13 @@ public class UserEntity extends BaseTimeEntity {
     private UserRole role;
 
     @Builder
-    public UserEntity(String username, String email, String password, AuthProvider provider, String providerUserId, String name, UserRole role) {
+    public UserEntity(String username, String email, String password, AuthProvider provider, String providerUserId, String githubAccessToken, String name, UserRole role) {
         this.username = username;
         this.email = email;
         this.password = password;
         this.provider = provider;
         this.providerUserId = providerUserId;
+        this.githubAccessToken = githubAccessToken;
         this.name = name;
         this.role = role;
     }
@@ -56,5 +60,15 @@ public class UserEntity extends BaseTimeEntity {
     public void updateUserInfo(String email, String name) {
         this.email = email;
         this.name = name;
+    }
+
+    public void updateOAuthInfo(String email, String name, String providerUserId) {
+        this.email = email;
+        this.name = name;
+        this.providerUserId = providerUserId;
+    }
+
+    public void updateGithubAccessToken(String githubAccessToken) {
+        this.githubAccessToken = githubAccessToken;
     }
 }

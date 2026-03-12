@@ -4,6 +4,7 @@ import com.gyuhyuk.micro_promise.data.dto.ProjectDTO;
 import com.gyuhyuk.micro_promise.data.entity.ProjectEntity;
 import com.gyuhyuk.micro_promise.data.entity.ProjectMemberEntity;
 import com.gyuhyuk.micro_promise.data.entity.ProjectRole;
+import com.gyuhyuk.micro_promise.data.entity.UserEntity;
 import com.gyuhyuk.micro_promise.repository.ProjectMemberRepository;
 import com.gyuhyuk.micro_promise.repository.ProjectRepository;
 import com.gyuhyuk.micro_promise.repository.UserRepository;
@@ -18,10 +19,15 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class ProjectServiceTest {
@@ -38,279 +44,194 @@ class ProjectServiceTest {
     private UserRepository userRepository;
 
     @Test
-    void create_테스트() {
-        //given
+    void createProject_savesProject() {
         ProjectDTO projectDTO = new ProjectDTO();
-        projectDTO.setName("프로젝트1");
-        projectDTO.setDescription("설명1");
-        projectDTO.setCreatedAt(null);
-        projectDTO.setOwnerId(1L);
+        projectDTO.setName("project1");
+        projectDTO.setDescription("desc1");
 
-        ProjectEntity projectEntity = new ProjectEntity("프로젝트1", "설명1", null);
+        ProjectEntity projectEntity = new ProjectEntity("project1", "desc1", null);
         ReflectionTestUtils.setField(projectEntity, "id", 1L);
         given(projectRepository.save(any(ProjectEntity.class))).willReturn(projectEntity);
 
-        //when
         projectService.createProject(projectDTO);
 
-        //then
         verify(projectRepository).save(any(ProjectEntity.class));
     }
 
     @Test
-    void create_제목빈값_테스트() {
-        //given
+    void createProject_registersOwnerMember() {
+        ProjectDTO projectDTO = new ProjectDTO();
+        projectDTO.setName("project");
+        projectDTO.setDescription("desc");
+        String ownerUsername = "GITHUB 100";
+        UserEntity owner = UserEntity.builder()
+                .username(ownerUsername)
+                .email("owner@test.com")
+                .name("owner")
+                .build();
+
+        given(userRepository.findByUsername(ownerUsername)).willReturn(owner);
+        given(projectRepository.save(any(ProjectEntity.class)))
+                .willAnswer(invocation -> {
+                    ProjectEntity entity = invocation.getArgument(0);
+                    ReflectionTestUtils.setField(entity, "id", 1L);
+                    return entity;
+                });
+
+        ProjectDTO created = projectService.createProject(projectDTO, ownerUsername);
+
+        assertEquals(1L, created.getId());
+        verify(projectRepository).save(any(ProjectEntity.class));
+        verify(projectMemberRepository).save(any(ProjectMemberEntity.class));
+    }
+
+    @Test
+    void createProject_emptyNameThrows() {
         ProjectDTO projectDTO = new ProjectDTO();
         projectDTO.setName("");
         projectDTO.setDescription("");
-        projectDTO.setCreatedAt(null);
-        projectDTO.setOwnerId(2L);
 
-        //when & then
-        assertThrows(IllegalArgumentException.class, () -> {
-            projectService.createProject(projectDTO);
-        });
+        assertThrows(IllegalArgumentException.class, () -> projectService.createProject(projectDTO));
     }
 
     @Test
-    void createProject_정상적으로_저장된다() {
-        // given
-        ProjectDTO dto = new ProjectDTO();
-        dto.setName("abcd");
-        dto.setDescription("desc");
-
-        // save가 호출되면 id가 있는 엔티티를 반환하도록 스텁
-        given(projectRepository.save(any(ProjectEntity.class)))
-                .willAnswer(invocation -> {
-                    ProjectEntity e = invocation.getArgument(0);
-                    ReflectionTestUtils.setField(e, "id", 1L);
-                    return e;
-                });
-
-        // when
-        projectService.createProject(dto);
-
-        // then: save가 호출됐는지 + 저장 엔티티 값 검증
-        ArgumentCaptor<ProjectEntity> captor = ArgumentCaptor.forClass(ProjectEntity.class);
-        verify(projectRepository, times(1)).save(captor.capture());
-
-        ProjectEntity saved = captor.getValue();
-        assertEquals("abcd", saved.getName());
-        assertEquals("desc", saved.getDescription());
-    }
-
-    @Test
-    void getProjectsByUsername_테스트1() {
-        // given
+    void getProjectsByUsername_returnsProjects() {
         String username = "user1";
 
         given(userRepository.existsByUsername(username)).willReturn(true);
 
-        ProjectEntity p1 = ProjectEntity.builder()
-                .name("p1")
-                .description("d1")
-                .build();
+        ProjectEntity p1 = ProjectEntity.builder().name("p1").description("d1").build();
         ReflectionTestUtils.setField(p1, "id", 1L);
 
-        ProjectEntity p2 = ProjectEntity.builder()
-                .name("p2")
-                .description("d2")
-                .build();
+        ProjectEntity p2 = ProjectEntity.builder().name("p2").description("d2").build();
         ReflectionTestUtils.setField(p2, "id", 2L);
 
-        given(projectMemberRepository.findProjectsByUsername(username))
-                .willReturn(List.of(p1, p2));
+        given(projectMemberRepository.findProjectsByUsername(username)).willReturn(List.of(p1, p2));
 
-        // when
-        List<ProjectDTO> result =
-                projectService.getProjectsByUsername(username);
+        List<ProjectDTO> result = projectService.getProjectsByUsername(username);
 
-        // then: 레포 호출 검증
-        verify(projectMemberRepository, times(1))
-                .findProjectsByUsername(username);
-
-        // then: 변환 결과 검증
+        verify(projectMemberRepository, times(1)).findProjectsByUsername(username);
         assertEquals(2, result.size());
         assertEquals(1L, result.get(0).getId());
         assertEquals("p1", result.get(0).getName());
         assertEquals("d1", result.get(0).getDescription());
-
         assertEquals(2L, result.get(1).getId());
         assertEquals("p2", result.get(1).getName());
         assertEquals("d2", result.get(1).getDescription());
     }
 
     @Test
-    void getProjectsByUsername_존재하지_않는_사용자_테스트() {
-        // given
+    void getProjectsByUsername_missingUserThrows() {
         String username = "nonexistent_user";
-
         given(userRepository.existsByUsername(username)).willReturn(false);
 
-        // when & then
-        assertThrows(IllegalArgumentException.class, () -> {
-            projectService.getProjectsByUsername(username);
-        });
+        assertThrows(IllegalArgumentException.class, () -> projectService.getProjectsByUsername(username));
     }
 
     @Test
-    void getProjectsByUsername_프로젝트_없음_테스트() {
-        // given
+    void getProjectsByUsername_noProjectsReturnsEmptyList() {
         String username = "user_no_projects";
 
         given(userRepository.existsByUsername(username)).willReturn(true);
-        given(projectMemberRepository.findProjectsByUsername(username))
-                .willReturn(List.of());
+        given(projectMemberRepository.findProjectsByUsername(username)).willReturn(List.of());
 
-        // when
-        List<ProjectDTO> result =
-                projectService.getProjectsByUsername(username);
+        List<ProjectDTO> result = projectService.getProjectsByUsername(username);
 
-        // then
-        verify(projectMemberRepository, times(1))
-                .findProjectsByUsername(username);
-
+        verify(projectMemberRepository, times(1)).findProjectsByUsername(username);
         assertTrue(result.isEmpty());
     }
 
     @Test
-    void updateProject_테스트() {
-        // given
+    void updateProject_ownerCanUpdate() {
         ProjectEntity existing = new ProjectEntity("old name", "old desc", null);
         String requestedUsername = "requester";
-        String nonOwnerUsername = "non_owner";
-
-        // id는 리플렉션으로 세팅 (setter 없을 때 정석)
         ReflectionTestUtils.setField(existing, "id", 1L);
 
-        given(projectRepository.findById(1L))
-                .willReturn(Optional.of(existing));
-
-        given(projectRepository.save(any(ProjectEntity.class)))
-                .willAnswer(invocation -> invocation.getArgument(0));
-
-        given(projectRepository.existsById(1L))
-                .willReturn(true);
-
-        given(projectMemberRepository.existsByProjectIdAndUserUsername(1L, requestedUsername))
-                .willReturn(true);
-
-        given(projectMemberRepository.existsByProjectIdAndUserUsername(1L, nonOwnerUsername))
-                .willReturn(true);
-
-        given(projectMemberRepository.findRoleByProjectIdAndUserUsername(1L, requestedUsername))
-                .willReturn(ProjectRole.OWNER);
-
-        given(projectMemberRepository.findRoleByProjectIdAndUserUsername(1L, nonOwnerUsername))
-                .willReturn(ProjectRole.MEMBER);
+        given(projectRepository.findById(1L)).willReturn(Optional.of(existing));
+        given(projectRepository.save(any(ProjectEntity.class))).willAnswer(invocation -> invocation.getArgument(0));
+        given(projectRepository.existsById(1L)).willReturn(true);
+        given(projectMemberRepository.existsByProjectIdAndUserUsername(1L, requestedUsername)).willReturn(true);
+        given(projectMemberRepository.findRoleByProjectIdAndUserUsername(1L, requestedUsername)).willReturn(ProjectRole.OWNER);
 
         ProjectDTO dto = new ProjectDTO();
         dto.setId(1L);
         dto.setName("new name");
         dto.setDescription("new desc");
 
-        // when
         ProjectDTO result = projectService.updateProject(dto, requestedUsername);
 
-        // when & then: non-owner가 업데이트 시도하면 예외
-        assertThrows(IllegalArgumentException.class, () -> {
-            projectService.updateProject(dto, nonOwnerUsername);
-        });
-
-        // then
-        ArgumentCaptor<ProjectEntity> captor =
-                ArgumentCaptor.forClass(ProjectEntity.class);
-
-        verify(projectRepository).findById(1L);
+        ArgumentCaptor<ProjectEntity> captor = ArgumentCaptor.forClass(ProjectEntity.class);
         verify(projectRepository).save(captor.capture());
 
         ProjectEntity saved = captor.getValue();
         assertEquals("new name", saved.getName());
         assertEquals("new desc", saved.getDescription());
-
         assertEquals(1L, result.getId());
         assertEquals("new name", result.getName());
         assertEquals("new desc", result.getDescription());
     }
 
     @Test
-    void updateProject_no_exist_project() {
-        // given
-        ProjectEntity existing = new ProjectEntity("old name", "old desc", null);
-        String requestedUsername = "requester";
+    void updateProject_nonOwnerThrows() {
+        String requestedUsername = "non_owner";
 
-        // id는 리플렉션으로 세팅 (setter 없을 때 정석)
-        ReflectionTestUtils.setField(existing, "id", 2L);
+        given(projectRepository.existsById(1L)).willReturn(true);
+        given(projectMemberRepository.existsByProjectIdAndUserUsername(1L, requestedUsername)).willReturn(true);
+        given(projectMemberRepository.findRoleByProjectIdAndUserUsername(1L, requestedUsername)).willReturn(ProjectRole.MEMBER);
 
         ProjectDTO dto = new ProjectDTO();
         dto.setId(1L);
         dto.setName("new name");
         dto.setDescription("new desc");
 
-        // when & then
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> projectService.updateProject(dto, requestedUsername)
-        );
-
+        assertThrows(IllegalArgumentException.class, () -> projectService.updateProject(dto, requestedUsername));
     }
 
     @Test
-    void deleteProject_OWNER_테스트() {
-        // given
+    void updateProject_missingProjectThrows() {
+        ProjectDTO dto = new ProjectDTO();
+        dto.setId(1L);
+        dto.setName("new name");
+        dto.setDescription("new desc");
+
+        assertThrows(IllegalArgumentException.class, () -> projectService.updateProject(dto, "requester"));
+    }
+
+    @Test
+    void deleteProject_ownerCanDelete() {
         Long projectId = 1L;
         String requestedUsername = "requester";
 
         given(projectRepository.existsById(projectId)).willReturn(true);
+        given(projectMemberRepository.existsByProjectIdAndUserUsername(projectId, requestedUsername)).willReturn(true);
+        given(projectMemberRepository.findRoleByProjectIdAndUserUsername(1L, requestedUsername)).willReturn(ProjectRole.OWNER);
 
-        given(projectMemberRepository.existsByProjectIdAndUserUsername(projectId, requestedUsername))
-                .willReturn(true);
-
-        given(projectMemberRepository.findRoleByProjectIdAndUserUsername(1L, requestedUsername))
-                .willReturn(ProjectRole.OWNER);
-
-        // when
         projectService.deleteProject(projectId, requestedUsername);
 
-        // then
         verify(projectRepository).existsById(projectId);
         verify(projectRepository).deleteById(projectId);
     }
 
     @Test
-    void deleteProject_NON_OWNER_테스트() {
-        // given
+    void deleteProject_nonOwnerThrows() {
         Long projectId = 1L;
         String requestedUsername = "requester";
 
         given(projectRepository.existsById(projectId)).willReturn(true);
+        given(projectMemberRepository.existsByProjectIdAndUserUsername(projectId, requestedUsername)).willReturn(true);
+        given(projectMemberRepository.findRoleByProjectIdAndUserUsername(1L, requestedUsername)).willReturn(ProjectRole.MEMBER);
 
-        given(projectMemberRepository.existsByProjectIdAndUserUsername(projectId, requestedUsername))
-                .willReturn(true);
-
-        given(projectMemberRepository.findRoleByProjectIdAndUserUsername(1L, requestedUsername))
-                .willReturn(ProjectRole.MEMBER);
-
-        // when & then
-        assertThrows(IllegalArgumentException.class, () -> {
-            projectService.deleteProject(projectId, requestedUsername);
-        });
-
+        assertThrows(IllegalArgumentException.class, () -> projectService.deleteProject(projectId, requestedUsername));
         verify(projectRepository).existsById(projectId);
-        verify(projectRepository, never()).deleteById(anyLong()); //projectRepository.deleteById()는 어떤 id로도 호출되면 안 된다
+        verify(projectRepository, never()).deleteById(anyLong());
     }
 
     @Test
-    void deleteProject_존재하지_않는_프로젝트_테스트() {
-        // given
+    void deleteProject_missingProjectThrows() {
         Long projectId = 99L;
         String requestedUsername = "requester";
         given(projectRepository.existsById(projectId)).willReturn(false);
-        // when & then
-        assertThrows(IllegalArgumentException.class, () -> {
-            projectService.deleteProject(projectId, requestedUsername);
-        });
+
+        assertThrows(IllegalArgumentException.class, () -> projectService.deleteProject(projectId, requestedUsername));
     }
-
-
 }

@@ -18,5 +18,5 @@ public interface TaskAssigneeRepository extends JpaRepository<TaskAssigneeEntity
     """)
     List<TaskEntity> findTaskByAssigneeUsername(@Param("username")String username);
 
-    TaskRole findRoleByTaskIdAndAssigneeUsername(Long taskId, String username);
+    TaskRole findRoleByTaskIdAndProjectMemberUserUsername(Long taskId, String username);
 }

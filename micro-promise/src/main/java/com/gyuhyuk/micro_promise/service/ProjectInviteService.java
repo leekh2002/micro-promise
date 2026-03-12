@@ -100,6 +100,7 @@ public class ProjectInviteService {
                 .project(invite.getProject())
                 .user(userEntity)
                 .role(ProjectRole.MEMBER)
+                .active(true)
                 .build();
 
         projectDTO.setId(invite.getProject().getId());

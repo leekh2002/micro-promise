@@ -212,7 +212,7 @@ class TaskServiceTest {
                 .status(TaskStatus.DOING)
                 .build()));
 
-        given(taskAssigneeRepository.findRoleByTaskIdAndAssigneeUsername(taskId, requester))
+        given(taskAssigneeRepository.findRoleByTaskIdAndProjectMemberUserUsername(taskId, requester))
                 .willReturn(TaskRole.OWNER);
 
         //when
@@ -239,7 +239,7 @@ class TaskServiceTest {
                 .status(TaskStatus.DOING)
                 .build()));
 
-        given(taskAssigneeRepository.findRoleByTaskIdAndAssigneeUsername(taskId, requester))
+        given(taskAssigneeRepository.findRoleByTaskIdAndProjectMemberUserUsername(taskId, requester))
                 .willReturn(TaskRole.MEMBER);
 
         //when & then
@@ -255,7 +255,7 @@ class TaskServiceTest {
         String requester = "테스트 owner";
         given(taskRepository.existsById(taskId)).willReturn(true);
 
-        given(taskAssigneeRepository.findRoleByTaskIdAndAssigneeUsername(taskId, requester))
+        given(taskAssigneeRepository.findRoleByTaskIdAndProjectMemberUserUsername(taskId, requester))
                 .willReturn(TaskRole.OWNER);
 
         //when
@@ -272,7 +272,7 @@ class TaskServiceTest {
         String requester = "테스트 유저";
 
         given(taskRepository.existsById(taskId)).willReturn(true);
-        given(taskAssigneeRepository.findRoleByTaskIdAndAssigneeUsername(taskId, requester))
+        given(taskAssigneeRepository.findRoleByTaskIdAndProjectMemberUserUsername(taskId, requester))
                 .willReturn(TaskRole.MEMBER);
 
         //when & then

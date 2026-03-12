@@ -1,10 +1,14 @@
 package com.gyuhyuk.micro_promise.service;
 
 import com.gyuhyuk.micro_promise.data.dto.GitHubRepositoryResponse;
-import com.gyuhyuk.micro_promise.data.dto.ProjectDTO;
+import com.gyuhyuk.micro_promise.data.dto.webhook.GithubWebhookResponse;
 import com.gyuhyuk.micro_promise.data.entity.ProjectEntity;
+import com.gyuhyuk.micro_promise.data.entity.ProjectMemberEntity;
 import com.gyuhyuk.micro_promise.data.entity.ProjectRepositoryEntity;
+import com.gyuhyuk.micro_promise.data.entity.ProjectRole;
+import com.gyuhyuk.micro_promise.data.entity.UserEntity;
 import com.gyuhyuk.micro_promise.repository.GitRepoRepository;
+import com.gyuhyuk.micro_promise.repository.ProjectMemberRepository;
 import com.gyuhyuk.micro_promise.repository.ProjectRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,9 +16,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -30,62 +36,65 @@ class GitRepositoryServiceTest {
     private ProjectRepository projectRepository;
 
     @Mock
+    private ProjectMemberRepository projectMemberRepository;
+
+    @Mock
     private GitHubClient gitHubClient;
 
     @Test
-    void connectGitRepository_테스트_올바른_URL() {
-        // given
-        ProjectDTO projectDTO = new ProjectDTO();
-        projectDTO.setId(1L);
-        projectDTO.setName("프로젝트1");
-        projectDTO.setDescription("설명1");
-        projectDTO.setCreatedAt(null);
-        projectDTO.setOwnerId(1L);
-        String gitRepoUrl = "https://github.com/owner/repo";
-        ProjectEntity projectEntity = ProjectEntity.builder()
-                .name("프로젝트1")
-                .description("설명1")
-                .build();
+    void createWebhook_usesProvidedAccessToken() {
+        String owner = "leekyouhyuk2002-oss";
+        String repo = "test";
+        String accessToken = "github-access-token";
+        GithubWebhookResponse webhookResponse = new GithubWebhookResponse();
 
-        GitHubRepositoryResponse response =
-                new GitHubRepositoryResponse(123L, "repo", "owner/repo", null, false);
+        given(gitHubClient.createWebhook(owner, repo, accessToken)).willReturn(webhookResponse);
 
-        given(projectRepository.findById(any(Long.class))).willReturn(java.util.Optional.of(projectEntity));
+        GithubWebhookResponse response = gitRepositoryService.createWebhook(owner, repo, accessToken);
 
-        given(gitHubClient.getRepository("owner", "repo"))
-                .willReturn(response);
-
-        // when
-        GitHubRepositoryResponse repositoryResponse = gitRepositoryService.connectRepository(projectDTO, gitRepoUrl);
-
-        // then
-        // gitRepoRepository의 save() 메서드가 호출되었는지 검증
-        verify(gitRepoRepository).save(any(ProjectRepositoryEntity.class));
-        assertEquals("repo", repositoryResponse.getName());
+        assertNotNull(response);
+        verify(gitHubClient).createWebhook(eq(owner), eq(repo), eq(accessToken));
     }
 
     @Test
-    void connectGitRepository_테스트_잘못된_URL() {
-        // given
-        ProjectDTO projectDTO = new ProjectDTO();
-        projectDTO.setId(1L);
-        projectDTO.setName("프로젝트1");
-        projectDTO.setDescription("설명1");
-        projectDTO.setCreatedAt(null);
-        projectDTO.setOwnerId(1L);
-        String gitRepoUrl = "https://github.com/leekh2002/private-tes";
+    void connectRepository_ownerRequestUsesOwnerGithubToken() {
+        Long projectId = 1L;
+        String username = "GITHUB 100";
+        String repositoryUrl = "https://github.com/owner/repo";
+        String accessToken = "github-access-token";
 
-        ProjectEntity projectEntity = ProjectEntity.builder()
-                .name("프로젝트1")
-                .description("설명1")
+        UserEntity ownerUser = UserEntity.builder()
+                .username(username)
+                .email("owner@test.com")
+                .name("owner")
+                .githubAccessToken(accessToken)
                 .build();
+        ProjectEntity project = ProjectEntity.builder()
+                .name("project")
+                .description("desc")
+                .build();
+        ProjectMemberEntity ownerMember = ProjectMemberEntity.builder()
+                .project(project)
+                .user(ownerUser)
+                .role(ProjectRole.OWNER)
+                .active(true)
+                .build();
+        GitHubRepositoryResponse repositoryResponse =
+                new GitHubRepositoryResponse(123L, "repo", "owner/repo", null, false);
 
-        given(gitHubClient.getRepository("leekh2002", "private-tes"))
-                .willThrow(new IllegalArgumentException());
+        given(projectRepository.existsById(projectId)).willReturn(true);
+        given(projectMemberRepository.existsByProjectIdAndUserUsername(projectId, username)).willReturn(true);
+        given(projectMemberRepository.findRoleByProjectIdAndUserUsername(projectId, username)).willReturn(ProjectRole.OWNER);
+        given(projectMemberRepository.findByProjectIdAndRoleAndActiveTrue(projectId, ProjectRole.OWNER))
+                .willReturn(Optional.of(ownerMember));
+        given(projectRepository.findById(projectId)).willReturn(Optional.of(project));
+        given(gitHubClient.getRepository("owner", "repo", accessToken)).willReturn(repositoryResponse);
+        given(gitHubClient.createWebhook("owner", "repo", accessToken)).willReturn(new GithubWebhookResponse());
 
-        // when & then
-        assertThrows(IllegalArgumentException.class, () -> {
-            gitRepositoryService.connectRepository(projectDTO, gitRepoUrl);
-        });
+        GitHubRepositoryResponse response = gitRepositoryService.connectRepository(projectId, repositoryUrl, username);
+
+        assertNotNull(response);
+        verify(gitRepoRepository).save(any(ProjectRepositoryEntity.class));
+        verify(gitHubClient).createWebhook(eq("owner"), eq("repo"), eq(accessToken));
     }
 }

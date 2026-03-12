@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ProjectMemberRepository extends JpaRepository<ProjectMemberEntity, Long> {
     @Query("""
@@ -32,5 +33,13 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMemberEnti
     void deleteByProjectIdAndUserUsername(Long projectId, String username);
     boolean existsByProjectIdAndUserUsername(Long projectId, String username);
 
+    @Query("""
+        select pm.role
+        from ProjectMemberEntity pm
+        where pm.project.id = :projectId
+          and pm.user.username = :username
+    """)
     ProjectRole findRoleByProjectIdAndUserUsername(Long projectId, String username);
+
+    Optional<ProjectMemberEntity> findByProjectIdAndRoleAndActiveTrue(Long projectId, ProjectRole role);
 }
