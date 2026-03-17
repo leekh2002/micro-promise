@@ -66,7 +66,7 @@ public class ReissueService {
         System.out.println("valid refresh token");
 
         //DB에 저장되어 있는지 확인
-        Boolean isExist = refreshRepository.existsByRefresh(refresh);
+        Boolean isExist = refreshRepository.existsById(refresh);
         if (!isExist) {
 
             //response body
@@ -83,7 +83,7 @@ public class ReissueService {
         String newRefresh = jwtUtil.createJwt("refresh", username, role, 86400000L);
 
         //Refresh 토큰 저장 DB에 기존의 Refresh 토큰 삭제 후 새 Refresh 토큰 저장
-        refreshRepository.deleteByRefresh(refresh);
+        refreshRepository.deleteById(refresh);
         addRefreshEntity(username, newRefresh, 86400000L);
 
         //response
@@ -98,9 +98,10 @@ public class ReissueService {
         Date date = new Date(System.currentTimeMillis() + expiredMs);
 
         RefreshEntity refreshEntity = new RefreshEntity();
-        refreshEntity.setUsername(username);
         refreshEntity.setRefresh(refresh);
+        refreshEntity.setUsername(username);
         refreshEntity.setExpiration(date.toString());
+        refreshEntity.setTtl(expiredMs / 1000);
 
         refreshRepository.save(refreshEntity);
     }

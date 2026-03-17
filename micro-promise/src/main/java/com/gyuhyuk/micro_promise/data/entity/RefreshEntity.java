@@ -1,22 +1,23 @@
 package com.gyuhyuk.micro_promise.data.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.redis.core.RedisHash;
+import org.springframework.data.redis.core.TimeToLive;
 
-@Entity
+@RedisHash("refresh_token")
 @Getter
 @Setter
 public class RefreshEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String refresh;
 
     private String username;
-    private String refresh;
+
     private String expiration;
+
+    @TimeToLive
+    private Long ttl;
 }

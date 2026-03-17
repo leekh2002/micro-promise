@@ -53,7 +53,7 @@ class GitRepositoryServiceTest {
         GithubWebhookResponse response = gitRepositoryService.createWebhook(owner, repo, accessToken);
 
         assertNotNull(response);
-        verify(gitHubClient).createWebhook(eq(owner), eq(repo), eq(accessToken));
+        verify(gitHubClient).createWebhook(eq(owner), eq(repo), eq(accessToken));   //gitHubClient.createWebhook(...)가 호출될 때 각 인자가 owner, repo, accessToken과 같은 값이었는지 확인
     }
 
     @Test
