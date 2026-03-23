@@ -1,5 +1,8 @@
 HELP.md
 .gradle
+.gradle-local/
+.gradle-project-cache/
+.gradle-user-home/
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
@@ -7,6 +10,7 @@ build/
 src/main/resources/.env
 src/test/resources/.env
 .env.docker
+refresh-cookie.txt
 
 ### STS ###
 .apt_generated
