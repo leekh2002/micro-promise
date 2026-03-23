@@ -41,6 +41,9 @@ class GitRepositoryServiceTest {
     @Mock
     private GitHubClient gitHubClient;
 
+    @Mock
+    private GitRepositorySyncService gitRepositorySyncService;
+
     @Test
     void createWebhook_usesProvidedAccessToken() {
         String owner = "leekyouhyuk2002-oss";
@@ -96,5 +99,6 @@ class GitRepositoryServiceTest {
         assertNotNull(response);
         verify(gitRepoRepository).save(any(ProjectRepositoryEntity.class));
         verify(gitHubClient).createWebhook(eq("owner"), eq("repo"), eq(accessToken));
+        verify(gitRepositorySyncService).syncRepositoryHistory(any(ProjectRepositoryEntity.class), eq("owner"), eq("repo"), eq(accessToken));
     }
 }

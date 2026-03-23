@@ -18,15 +18,18 @@ public class GitRepositoryService {
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final GitHubClient gitHubClient;
+    private final GitRepositorySyncService gitRepositorySyncService;
 
     public GitRepositoryService(GitRepoRepository gitRepoRepository,
                                 ProjectRepository projectRepository,
                                 ProjectMemberRepository projectMemberRepository,
-                                GitHubClient gitHubClient) {
+                                GitHubClient gitHubClient,
+                                GitRepositorySyncService gitRepositorySyncService) {
         this.gitRepoRepository = gitRepoRepository;
         this.projectRepository = projectRepository;
         this.projectMemberRepository = projectMemberRepository;
         this.gitHubClient = gitHubClient;
+        this.gitRepositorySyncService = gitRepositorySyncService;
     }
 
     public static String[] parse(String repositoryUrl) {
@@ -93,6 +96,8 @@ public class GitRepositoryService {
 
         gitRepoRepository.save(projectRepositoryEntity);
         createWebhook(owner, repo, ownerGithubToken);
+        // 웹훅은 생성 이후의 변경만 전달하므로, 연결 시점의 기존 이력은 별도 초기 동기화가 필요하다.
+        gitRepositorySyncService.syncRepositoryHistory(projectRepositoryEntity, owner, repo, ownerGithubToken);
 
         return repositoryResponse;
     }
