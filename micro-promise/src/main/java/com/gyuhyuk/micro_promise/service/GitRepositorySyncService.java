@@ -37,9 +37,7 @@ import java.util.regex.Pattern;
 public class GitRepositorySyncService {
 
     private static final Logger log = LoggerFactory.getLogger(GitRepositorySyncService.class);
-    // Commit message 안의 "#123" 형태를 task id로 해석한다.
     private static final Pattern COMMIT_TASK_ID_PATTERN = Pattern.compile("#(\\d+)");
-    // Branch name 안의 "task-123" 형태를 task id로 해석한다.
     private static final Pattern BRANCH_TASK_ID_PATTERN = Pattern.compile("(?:^|[/-])task-(\\d+)(?:$|[-/])");
     private static final int INITIAL_SYNC_COMMITS_PER_BRANCH = 100;
 
@@ -48,35 +46,50 @@ public class GitRepositorySyncService {
     private final BranchRepository branchRepository;
     private final CommitRepository commitRepository;
     private final TaskRepository taskRepository;
-    private final ProjectMemberRepository projectMemberRepository;
+    // branch에 이미 연결된 task 목록을 조회해서 push된 commit을 자동 전파할 때 사용한다.
     private final TaskBranchLinkRepository taskBranchLinkRepository;
+    // task-commit 링크 중복 여부를 확인하고 자동 링크를 저장할 때 사용한다.
     private final TaskCommitLinkRepository taskCommitLinkRepository;
+    // 자동 생성되는 task-commit 링크의 linkedBy를 채우기 위해 프로젝트 owner를 조회한다.
+    private final ProjectMemberRepository projectMemberRepository;
 
     public GitRepositorySyncService(GitHubClient gitHubClient,
                                     GitRepoRepository gitRepoRepository,
                                     BranchRepository branchRepository,
                                     CommitRepository commitRepository,
                                     TaskRepository taskRepository,
-                                    ProjectMemberRepository projectMemberRepository,
                                     TaskBranchLinkRepository taskBranchLinkRepository,
-                                    TaskCommitLinkRepository taskCommitLinkRepository) {
+                                    TaskCommitLinkRepository taskCommitLinkRepository,
+                                    ProjectMemberRepository projectMemberRepository) {
         this.gitHubClient = gitHubClient;
         this.gitRepoRepository = gitRepoRepository;
         this.branchRepository = branchRepository;
         this.commitRepository = commitRepository;
         this.taskRepository = taskRepository;
-        this.projectMemberRepository = projectMemberRepository;
         this.taskBranchLinkRepository = taskBranchLinkRepository;
         this.taskCommitLinkRepository = taskCommitLinkRepository;
+        this.projectMemberRepository = projectMemberRepository;
     }
 
     public void syncRepositoryHistory(ProjectRepositoryEntity repository, String owner, String repo, String accessToken) {
         List<GitHubBranchResponse> branches = gitHubClient.getBranches(owner, repo, accessToken);
 
+        log.info("Starting initial GitHub repository sync. repositoryId={}, repository={}, branches={}",
+                repository.getId(),
+                repository.getRepoName(),
+                branches.size()
+        );
+
         for (GitHubBranchResponse branchResponse : branches) {
             if (branchResponse == null || branchResponse.name() == null || branchResponse.name().isBlank()) {
                 continue;
             }
+
+            log.info("Syncing branch. repositoryId={}, repository={}, branch={}",
+                    repository.getId(),
+                    repository.getRepoName(),
+                    branchResponse.name()
+            );
 
             List<GitHubCommitResponse> commits = gitHubClient.getCommits(
                     owner,
@@ -135,7 +148,8 @@ public class GitRepositorySyncService {
                 ))
                 .toList();
 
-        syncImportedBranchCommits(repositoryOptional.get(), branchName, importedCommits);
+        // 실시간 push는 "새로 들어온 commit"이므로 branch-linked task들에 commit을 자동 연동한다.
+        syncImportedBranchCommits(repositoryOptional.get(), branchName, importedCommits, true);
 
         log.info(
                 "Received GitHub push event. repositoryId={}, repository={}, ref={}, commits={}, forced={}",
@@ -163,13 +177,15 @@ public class GitRepositorySyncService {
                 ))
                 .toList();
 
-        syncImportedBranchCommits(repository, branchName, importedCommits);
+        // 초기 이력 동기화는 과거 commit까지 한꺼번에 가져오므로 task 자동 연동은 막는다.
+        syncImportedBranchCommits(repository, branchName, importedCommits, false);
     }
 
     @Transactional
     void syncImportedBranchCommits(ProjectRepositoryEntity repository,
                                    String branchName,
-                                   List<ImportedCommit> commits) {
+                                   List<ImportedCommit> commits,
+                                   boolean autoLinkTasks) {
         BranchEntity branch = branchRepository.findByRepositoryIdAndBranchName(repository.getId(), branchName)
                 .orElseGet(() -> branchRepository.save(BranchEntity.builder()
                         .repository(repository)
@@ -177,15 +193,21 @@ public class GitRepositorySyncService {
                         .merged(false)
                         .build()));
 
-        Optional<ProjectMemberEntity> ownerMember = projectMemberRepository.findByProjectIdAndRoleAndActiveTrue(
-                repository.getProject().getId(),
-                ProjectRole.OWNER
-        );
-
+        // push 경로에서만 현재 branch에 연결된 task-branch 링크를 읽어 온다.
+        // 초기 sync에서는 빈 리스트를 써서 자동 연동 로직이 전혀 돌지 않게 한다.
+        List<TaskBranchLinkEntity> taskBranchLinks = autoLinkTasks
+                ? taskBranchLinkRepository.findByBranchId(branch.getId())
+                : List.of();
+        // task-commit 링크의 linkedBy는 null일 수 없으므로, 자동 링크의 작성자로 쓸 프로젝트 owner를 찾는다.
+        ProjectMemberEntity autoLinkActor = taskBranchLinks.isEmpty()
+                ? null
+                : resolveAutoLinkActor(repository.getProject().getId());
+        // 기존 규칙인 branch명 기반 task 추정은 그대로 유지한다.
         Optional<TaskEntity> branchTask = findTaskForBranch(repository.getProject().getId(), branchName);
         branchTask.ifPresent(task -> linkBranch(task, branch));
 
         for (ImportedCommit importedCommit : commits) {
+            // commit은 task와 연결되기 전에 먼저 git_commits 테이블에 존재해야 하므로 upsert한다.
             CommitEntity commit = commitRepository.findById(importedCommit.sha())
                     .orElseGet(() -> commitRepository.save(CommitEntity.builder()
                             .sha(importedCommit.sha())
@@ -195,30 +217,60 @@ public class GitRepositorySyncService {
                             .committedAt(importedCommit.committedAt())
                             .build()));
 
-            if (ownerMember.isEmpty()) {
+            // 이번에 추가한 핵심 로직이다.
+            // 이미 branch에 연결되어 있던 모든 task에 대해 현재 commit을 task-commit 링크로 복제한다.
+            if (!taskBranchLinks.isEmpty() && autoLinkActor != null) {
+                autoLinkCommitToTasks(taskBranchLinks, commit, autoLinkActor);
+            }
+
+            // 여기 아래의 기존 자동 추정 로직도 linkedBy가 필요하므로 owner를 못 찾으면 건너뛴다.
+            if (autoLinkActor == null) {
                 continue;
             }
 
-            // branch명 기반 연결과 commit message 기반 연결을 합쳐 한 번에 처리한다.
+            // branch명 기반 추정 task와 commit message의 #123 기반 추정 task를 합친다.
+            // Set을 쓰는 이유는 같은 task가 두 경로로 들어와도 한 번만 링크하기 위해서다.
             Set<TaskEntity> tasksToLink = new LinkedHashSet<>();
             branchTask.ifPresent(tasksToLink::add);
             tasksToLink.addAll(findTasksFromCommitMessage(repository.getProject().getId(), importedCommit.message()));
 
             for (TaskEntity task : tasksToLink) {
-                linkCommit(task, commit, ownerMember.get());
+                linkCommit(task, commit, autoLinkActor);
             }
         }
     }
 
-    private String extractBranchName(String ref) {
-        if (ref == null || !ref.startsWith("refs/heads/")) {
-            return null;
+    private ProjectMemberEntity resolveAutoLinkActor(Long projectId) {
+        // 자동 링크는 실제 로그인 요청자가 없기 때문에 프로젝트 owner를 시스템 대리인처럼 사용한다.
+        return projectMemberRepository.findByProjectIdAndRoleAndActiveTrue(projectId, ProjectRole.OWNER)
+                .orElse(null);
+    }
+
+    private void autoLinkCommitToTasks(List<TaskBranchLinkEntity> taskBranchLinks,
+                                       CommitEntity commit,
+                                       ProjectMemberEntity autoLinkActor) {
+        // 한 branch가 여러 task에 연결될 수 있으므로 branch 링크 수만큼 task-commit 링크를 만든다.
+        for (TaskBranchLinkEntity taskBranchLink : taskBranchLinks) {
+            Long taskId = taskBranchLink.getTask().getId();
+            // GitHub webhook 재전송이나 중복 push 처리에도 동일 링크가 두 번 생기지 않게 막는다.
+            if (taskCommitLinkRepository.existsByTaskIdAndCommitSha(taskId, commit.getSha())) {
+                continue;
+            }
+
+            // branch에 연결되어 있던 task를 기준으로 현재 commit을 자동 연동한다.
+            taskCommitLinkRepository.save(TaskCommitLinkEntity.builder()
+                    .task(taskBranchLink.getTask())
+                    .commit(commit)
+                    .linkedBy(autoLinkActor)
+                    // 자동으로 보이기만 한 상태이므로 "완료 근거로 승인됨" 상태는 아니다.
+                    .accepted(false)
+                    // 수동 링크와 구분되도록 생성 사유를 남긴다.
+                    .comment("Auto linked from branch push")
+                    .build());
         }
-        return ref.substring("refs/heads/".length());
     }
 
     private Optional<TaskEntity> findTaskForBranch(Long projectId, String branchName) {
-        // branch naming convention을 따르는 경우에만 자동 연결한다.
         Matcher matcher = BRANCH_TASK_ID_PATTERN.matcher(branchName);
         if (!matcher.find()) {
             return Optional.empty();
@@ -244,14 +296,12 @@ public class GitRepositorySyncService {
             return List.of();
         }
 
-        // 다른 프로젝트 task로 잘못 연결되지 않도록 project id를 다시 검증한다.
         return taskRepository.findAllById(taskIds).stream()
                 .filter(task -> Objects.equals(task.getProject().getId(), projectId))
                 .toList();
     }
 
     private void linkBranch(TaskEntity task, BranchEntity branch) {
-        // GitHub가 동일 이벤트를 재전송해도 중복 링크가 생기지 않게 막는다.
         if (taskBranchLinkRepository.existsByTaskIdAndBranchId(task.getId(), branch.getId())) {
             return;
         }
@@ -265,7 +315,6 @@ public class GitRepositorySyncService {
     }
 
     private void linkCommit(TaskEntity task, CommitEntity commit, ProjectMemberEntity linkedBy) {
-        // commit-task 링크도 동일하게 idempotent 하게 유지한다.
         if (taskCommitLinkRepository.existsByTaskIdAndCommitSha(task.getId(), commit.getSha())) {
             return;
         }
@@ -277,6 +326,13 @@ public class GitRepositorySyncService {
                 .accepted(false)
                 .comment("Auto-linked from GitHub push event")
                 .build());
+    }
+
+    private String extractBranchName(String ref) {
+        if (ref == null || !ref.startsWith("refs/heads/")) {
+            return null;
+        }
+        return ref.substring("refs/heads/".length());
     }
 
     private String resolveAuthorName(GithubPushEvent.Commit commitEvent, GithubPushEvent pushEvent) {

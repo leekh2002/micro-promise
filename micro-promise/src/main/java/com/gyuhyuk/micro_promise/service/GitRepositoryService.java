@@ -96,7 +96,7 @@ public class GitRepositoryService {
 
         gitRepoRepository.save(projectRepositoryEntity);
         createWebhook(owner, repo, ownerGithubToken);
-        // 웹훅은 생성 이후의 변경만 전달하므로, 연결 시점의 기존 이력은 별도 초기 동기화가 필요하다.
+        // Webhooks only deliver changes after registration, so existing history needs an initial sync.
         gitRepositorySyncService.syncRepositoryHistory(projectRepositoryEntity, owner, repo, ownerGithubToken);
 
         return repositoryResponse;

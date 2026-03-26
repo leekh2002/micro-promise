@@ -59,6 +59,7 @@ public class GitHubClientImpl implements GitHubClient {
 
     @Override
     public List<GitHubBranchResponse> getBranches(String owner, String repo, String accessToken) {
+        // Fetch the current branch list for initial repository backfill.
         GitHubBranchResponse[] response = restClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .scheme("https")
@@ -77,6 +78,7 @@ public class GitHubClientImpl implements GitHubClient {
 
     @Override
     public List<GitHubCommitResponse> getCommits(String owner, String repo, String branchName, int limit, String accessToken) {
+        // Fetch a bounded number of recent commits for one branch during backfill.
         GitHubCommitResponse[] response = restClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .scheme("https")

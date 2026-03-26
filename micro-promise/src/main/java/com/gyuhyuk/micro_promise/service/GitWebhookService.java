@@ -80,7 +80,7 @@ public class GitWebhookService {
     }
 
     public void handlePush(GithubPushEvent event) {
-        // 초기 동기화와 동일한 저장 규칙을 사용하도록 push 처리도 sync service로 위임한다.
+        // Reuse the same persistence rules for both webhook pushes and initial sync.
         gitRepositorySyncService.syncPushEvent(event);
     }
 }
