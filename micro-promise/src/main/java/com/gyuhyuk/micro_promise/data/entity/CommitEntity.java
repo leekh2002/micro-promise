@@ -18,8 +18,6 @@ import java.time.LocalDateTime;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
 public class CommitEntity extends BaseTimeEntity {
 
     @Id
@@ -39,4 +37,13 @@ public class CommitEntity extends BaseTimeEntity {
 
     @Column(name = "committed_at", nullable = false)
     private LocalDateTime committedAt;
+
+    @Builder
+    private CommitEntity(String sha, BranchEntity branch, String message, String authorName, LocalDateTime committedAt) {
+        this.sha = sha;
+        this.branch = branch;
+        this.message = message;
+        this.authorName = authorName;
+        this.committedAt = committedAt;
+    }
 }

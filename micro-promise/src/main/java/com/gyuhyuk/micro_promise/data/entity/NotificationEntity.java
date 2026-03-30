@@ -13,8 +13,6 @@ import lombok.*;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
 public class NotificationEntity extends BaseTimeEntity {
 
     @Id
@@ -39,4 +37,14 @@ public class NotificationEntity extends BaseTimeEntity {
 
     @Column(name = "is_read", nullable = false)
     private boolean read;
+
+    @Builder
+    private NotificationEntity(ProjectMemberEntity receiver, NotificationType type, NotificationChannel channel,
+                               String content, boolean read) {
+        this.receiver = receiver;
+        this.type = type;
+        this.channel = channel;
+        this.content = content;
+        this.read = read;
+    }
 }

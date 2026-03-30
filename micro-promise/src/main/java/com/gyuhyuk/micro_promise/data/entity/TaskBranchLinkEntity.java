@@ -18,8 +18,6 @@ import lombok.*;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
 public class TaskBranchLinkEntity extends BaseTimeEntity {
 
     @Id
@@ -46,4 +44,12 @@ public class TaskBranchLinkEntity extends BaseTimeEntity {
     // 어떤 이유로 연결했는지(선택)
     @Column(length = 500)
     private String note;
+
+    @Builder
+    private TaskBranchLinkEntity(TaskEntity task, BranchEntity branch, Boolean primary, String note) {
+        this.task = task;
+        this.branch = branch;
+        this.primary = primary;
+        this.note = note;
+    }
 }

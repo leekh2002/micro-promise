@@ -21,8 +21,6 @@ import lombok.*;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
 public class BranchEntity extends BaseTimeEntity {
 
     @Id
@@ -40,4 +38,11 @@ public class BranchEntity extends BaseTimeEntity {
     // PR merge 여부를 branch 수준에서 캐시하고 싶으면(선택)
     @Column(nullable = false)
     private boolean merged;
+
+    @Builder
+    private BranchEntity(ProjectRepositoryEntity repository, String branchName, boolean merged) {
+        this.repository = repository;
+        this.branchName = branchName;
+        this.merged = merged;
+    }
 }

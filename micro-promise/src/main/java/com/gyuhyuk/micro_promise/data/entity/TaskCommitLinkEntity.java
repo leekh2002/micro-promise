@@ -15,8 +15,6 @@ import lombok.*;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder
 public class TaskCommitLinkEntity extends BaseTimeEntity {
 
     @Id
@@ -47,4 +45,14 @@ public class TaskCommitLinkEntity extends BaseTimeEntity {
 
     @Column(length = 500)
     private String comment;
+
+    @Builder
+    private TaskCommitLinkEntity(TaskEntity task, CommitEntity commit, ProjectMemberEntity linkedBy,
+                                 boolean accepted, String comment) {
+        this.task = task;
+        this.commit = commit;
+        this.linkedBy = linkedBy;
+        this.accepted = accepted;
+        this.comment = comment;
+    }
 }

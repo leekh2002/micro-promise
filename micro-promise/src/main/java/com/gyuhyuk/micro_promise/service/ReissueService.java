@@ -63,7 +63,6 @@ public class ReissueService {
             //response status code
             return new ResponseEntity<>("invalid refresh token", HttpStatus.BAD_REQUEST);
         }
-        System.out.println("valid refresh token");
 
         //DB에 저장되어 있는지 확인
         Boolean isExist = refreshRepository.existsById(refresh);
@@ -73,7 +72,6 @@ public class ReissueService {
             return new ResponseEntity<>("invalid refresh token", HttpStatus.BAD_REQUEST);
         }
 
-        System.out.println("valid refresh token");
 
         String username = jwtUtil.getUsername(refresh);
         String role = jwtUtil.getRole(refresh);

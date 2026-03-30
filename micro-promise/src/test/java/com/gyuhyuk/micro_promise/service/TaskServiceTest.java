@@ -1,9 +1,16 @@
 package com.gyuhyuk.micro_promise.service;
 
 import com.gyuhyuk.micro_promise.data.dto.TaskAssigneeDTO;
+import com.gyuhyuk.micro_promise.data.dto.TaskDoneRequestCreateRequest;
+import com.gyuhyuk.micro_promise.data.dto.TaskDoneRequestDTO;
+import com.gyuhyuk.micro_promise.data.dto.TaskDoneRequestDecisionRequest;
 import com.gyuhyuk.micro_promise.data.dto.TaskDTO;
+import com.gyuhyuk.micro_promise.data.entity.DoneRequestStatus;
 import com.gyuhyuk.micro_promise.data.entity.ProjectEntity;
 import com.gyuhyuk.micro_promise.data.entity.ProjectMemberEntity;
+import com.gyuhyuk.micro_promise.data.entity.ProjectRole;
+import com.gyuhyuk.micro_promise.data.entity.TaskAssigneeEntity;
+import com.gyuhyuk.micro_promise.data.entity.TaskDoneRequestEntity;
 import com.gyuhyuk.micro_promise.data.entity.TaskEntity;
 import com.gyuhyuk.micro_promise.data.entity.TaskRole;
 import com.gyuhyuk.micro_promise.data.entity.TaskStatus;
@@ -12,6 +19,7 @@ import com.gyuhyuk.micro_promise.fixture.entity.TaskAssigneeEntityFixture;
 import com.gyuhyuk.micro_promise.repository.ProjectMemberRepository;
 import com.gyuhyuk.micro_promise.repository.ProjectRepository;
 import com.gyuhyuk.micro_promise.repository.TaskAssigneeRepository;
+import com.gyuhyuk.micro_promise.repository.TaskDoneRequestRepository;
 import com.gyuhyuk.micro_promise.repository.TaskRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +35,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -47,6 +56,9 @@ class TaskServiceTest {
 
     @Mock
     private TaskAssigneeRepository taskAssigneeRepository;
+
+    @Mock
+    private TaskDoneRequestRepository taskDoneRequestRepository;
 
     @Test
     void createTask_createsTaskAndAssignees() {
@@ -233,5 +245,199 @@ class TaskServiceTest {
                 .willReturn(TaskRole.MEMBER);
 
         assertThrows(IllegalArgumentException.class, () -> taskService.deleteTask(taskId, requester));
+    }
+
+    @Test
+    void createTask_nonOwnerCannotCreateRootTask() {
+        TaskDTO taskDTO = new TaskDTO();
+        taskDTO.setTitle("root");
+        taskDTO.setDescription("root desc");
+        taskDTO.setStatus("TODO");
+
+        Long projectId = 1L;
+        String requester = "member";
+
+        given(projectRepository.existsById(projectId)).willReturn(true);
+        given(projectMemberRepository.existsByProjectIdAndUserUsername(projectId, requester)).willReturn(true);
+        given(projectMemberRepository.findRoleByProjectIdAndUserUsername(projectId, requester)).willReturn(ProjectRole.MEMBER);
+
+        assertThrows(IllegalArgumentException.class, () -> taskService.createTask(taskDTO, null, projectId, requester));
+    }
+
+    @Test
+    void createDoneRequest_taskOwnerCanCreateRequestForParentTaskOwner() {
+        Long projectId = 1L;
+        Long parentTaskId = 10L;
+        Long taskId = 20L;
+        String requesterUsername = "child-owner";
+
+        ProjectEntity project = ProjectEntity.builder().name("project").description("desc").build();
+        ReflectionTestUtils.setField(project, "id", projectId);
+
+        TaskEntity parentTask = TaskEntity.builder()
+                .project(project)
+                .title("parent")
+                .description("parent desc")
+                .status(TaskStatus.DOING)
+                .progress(70)
+                .orderIndex(0)
+                .build();
+        ReflectionTestUtils.setField(parentTask, "id", parentTaskId);
+
+        TaskEntity childTask = TaskEntity.builder()
+                .project(project)
+                .parent(parentTask)
+                .title("child")
+                .description("child desc")
+                .status(TaskStatus.DOING)
+                .progress(30)
+                .orderIndex(1)
+                .build();
+        ReflectionTestUtils.setField(childTask, "id", taskId);
+
+        ProjectMemberEntity requester = ProjectMemberEntity.builder()
+                .project(project)
+                .user(UserEntity.builder().username(requesterUsername).build())
+                .role(ProjectRole.MEMBER)
+                .active(true)
+                .build();
+
+        ProjectMemberEntity parentOwner = ProjectMemberEntity.builder()
+                .project(project)
+                .user(UserEntity.builder().username("parent-owner").build())
+                .role(ProjectRole.MEMBER)
+                .active(true)
+                .build();
+
+        TaskAssigneeEntity parentOwnerAssignee = TaskAssigneeEntity.builder()
+                .task(parentTask)
+                .projectMember(parentOwner)
+                .role(TaskRole.OWNER)
+                .build();
+
+        given(taskRepository.findById(taskId)).willReturn(Optional.of(childTask));
+        given(projectMemberRepository.findByProjectIdAndUserUsernameAndActiveTrue(projectId, requesterUsername))
+                .willReturn(Optional.of(requester));
+        given(taskAssigneeRepository.findRoleByTaskIdAndProjectMemberUserUsername(taskId, requesterUsername))
+                .willReturn(TaskRole.OWNER);
+        given(taskDoneRequestRepository.existsByTaskIdAndStatus(taskId, DoneRequestStatus.REQUESTED))
+                .willReturn(false);
+        given(taskAssigneeRepository.findByTaskIdAndRole(parentTaskId, TaskRole.OWNER))
+                .willReturn(parentOwnerAssignee);
+        given(taskDoneRequestRepository.save(any(TaskDoneRequestEntity.class)))
+                .willAnswer(invocation -> {
+                    TaskDoneRequestEntity entity = invocation.getArgument(0);
+                    ReflectionTestUtils.setField(entity, "id", 100L);
+                    return entity;
+                });
+
+        TaskDoneRequestDTO result = taskService.createDoneRequest(
+                projectId,
+                taskId,
+                new TaskDoneRequestCreateRequest("done plz"),
+                requesterUsername
+        );
+
+        assertEquals("REQUESTED", result.getStatus());
+        assertEquals("parent-owner", result.getTargetTaskOwnerUsername());
+        verify(taskDoneRequestRepository).save(any(TaskDoneRequestEntity.class));
+    }
+
+    @Test
+    void createDoneRequest_nonOwnerCannotCreate() {
+        Long projectId = 1L;
+        Long taskId = 2L;
+        String requesterUsername = "member";
+
+        ProjectEntity project = ProjectEntity.builder().name("project").description("desc").build();
+        ReflectionTestUtils.setField(project, "id", projectId);
+
+        TaskEntity task = TaskEntity.builder()
+                .project(project)
+                .title("task")
+                .description("desc")
+                .status(TaskStatus.DOING)
+                .progress(30)
+                .orderIndex(0)
+                .build();
+        ReflectionTestUtils.setField(task, "id", taskId);
+
+        ProjectMemberEntity requester = ProjectMemberEntity.builder()
+                .project(project)
+                .user(UserEntity.builder().username(requesterUsername).build())
+                .role(ProjectRole.MEMBER)
+                .active(true)
+                .build();
+
+        given(taskRepository.findById(taskId)).willReturn(Optional.of(task));
+        given(projectMemberRepository.findByProjectIdAndUserUsernameAndActiveTrue(projectId, requesterUsername))
+                .willReturn(Optional.of(requester));
+        given(taskAssigneeRepository.findRoleByTaskIdAndProjectMemberUserUsername(taskId, requesterUsername))
+                .willReturn(TaskRole.MEMBER);
+
+        assertThrows(IllegalArgumentException.class, () -> taskService.createDoneRequest(
+                projectId,
+                taskId,
+                new TaskDoneRequestCreateRequest("done plz"),
+                requesterUsername
+        ));
+    }
+
+    @Test
+    void decideDoneRequest_approveMarksTaskDone() {
+        Long projectId = 1L;
+        Long taskId = 2L;
+        Long doneRequestId = 3L;
+
+        ProjectEntity project = ProjectEntity.builder().name("project").description("desc").build();
+        ReflectionTestUtils.setField(project, "id", projectId);
+
+        TaskEntity task = TaskEntity.builder()
+                .project(project)
+                .title("task")
+                .description("desc")
+                .status(TaskStatus.DOING)
+                .progress(50)
+                .orderIndex(0)
+                .build();
+        ReflectionTestUtils.setField(task, "id", taskId);
+
+        ProjectMemberEntity requester = ProjectMemberEntity.builder()
+                .project(project)
+                .user(UserEntity.builder().username("child-owner").build())
+                .role(ProjectRole.MEMBER)
+                .active(true)
+                .build();
+
+        ProjectMemberEntity parentOwner = ProjectMemberEntity.builder()
+                .project(project)
+                .user(UserEntity.builder().username("parent-owner").build())
+                .role(ProjectRole.MEMBER)
+                .active(true)
+                .build();
+
+        TaskDoneRequestEntity doneRequest = TaskDoneRequestEntity.builder()
+                .task(task)
+                .requester(requester)
+                .targetTaskOwner(parentOwner)
+                .status(DoneRequestStatus.REQUESTED)
+                .message("please approve")
+                .build();
+        ReflectionTestUtils.setField(doneRequest, "id", doneRequestId);
+
+        given(taskDoneRequestRepository.findById(doneRequestId)).willReturn(Optional.of(doneRequest));
+
+        TaskDoneRequestDTO result = taskService.decideDoneRequest(
+                projectId,
+                taskId,
+                doneRequestId,
+                new TaskDoneRequestDecisionRequest(true),
+                "parent-owner"
+        );
+
+        assertEquals("ACCEPTED", result.getStatus());
+        assertEquals("DONE", task.getStatus().name());
+        assertEquals(100, task.getProgress());
+        assertTrue(result.getDecidedAt() != null);
     }
 }
